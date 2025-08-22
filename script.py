@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import os
 import sys
+import subprocess
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -129,6 +130,16 @@ class ASCIIVideoConverter:
         charset_combo.pack(side=tk.LEFT, padx=10)
         charset_combo.set('detailed')
         
+        # Video Quality
+        quality_frame = ttk.Frame(settings_frame)
+        quality_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(quality_frame, text="MP4 Quality:").pack(side=tk.LEFT)
+        self.quality_var = tk.StringVar(value='high')
+        quality_combo = ttk.Combobox(quality_frame, textvariable=self.quality_var, 
+                                    values=['high', 'medium', 'low'], state="readonly")
+        quality_combo.pack(side=tk.LEFT, padx=10)
+        quality_combo.set('high')
+        
         # Audio option
         audio_frame = ttk.Frame(settings_frame)
         audio_frame.pack(fill=tk.X, pady=5)
@@ -140,12 +151,17 @@ class ASCIIVideoConverter:
         if not AUDIO_SUPPORT:
             audio_check.config(state='disabled')
             if AUDIO_ERROR:
-                audio_info = ttk.Label(audio_frame, text=f"(Error: {AUDIO_ERROR[:50]}...)", 
+                audio_info = ttk.Label(audio_frame, text=f"(Install moviepy or ffmpeg for audio)", 
                                       foreground='red', font=('Arial', 8))
             else:
-                audio_info = ttk.Label(audio_frame, text="(Install moviepy for audio support)", 
+                audio_info = ttk.Label(audio_frame, text="(Install moviepy or ffmpeg for audio)", 
                                       foreground='red', font=('Arial', 8))
             audio_info.pack(side=tk.LEFT, padx=10)
+        else:
+            # Show which method is being used
+            method_info = ttk.Label(audio_frame, text=f"(using {AUDIO_METHOD})", 
+                                   foreground='green', font=('Arial', 8))
+            method_info.pack(side=tk.LEFT, padx=10)
         
         # Convert button - ALWAYS enabled
         self.convert_btn = ttk.Button(main_frame, text="🎬 Convert to ASCII Video", 
@@ -181,15 +197,16 @@ class ASCIIVideoConverter:
         self.log_text.pack(fill=tk.BOTH, expand=True)
         
         self.log("ASCII Video Converter ready!")
+        self.log("📹 Output format: High-quality MP4")
         if AUDIO_SUPPORT:
-            self.log("✅ Audio support enabled")
+            self.log(f"✅ Audio support enabled using {AUDIO_METHOD}")
         else:
             self.log("⚠ Audio support disabled")
             if AUDIO_ERROR:
                 self.log(f"   Audio error: {AUDIO_ERROR}")
-            self.log("   Install moviepy for audio: pip install moviepy")
+            self.log("   Install moviepy OR ffmpeg for audio support")
         self.log("1. Select a video file")
-        self.log("2. Adjust settings")
+        self.log("2. Adjust settings & MP4 quality")
         self.log("3. Enable audio if available")
         self.log("4. Click Convert")
         
@@ -310,8 +327,10 @@ class ASCIIVideoConverter:
             font_size = int(self.font_var.get())
             charset = self.charsets[self.charset_var.get()]
             include_audio = self.include_audio.get()
+            quality = self.quality_var.get()
             
             self.log(f"Settings - Width: {ascii_width}, Contrast: {contrast}, Font: {font_size}")
+            self.log(f"Output - MP4 Quality: {quality}")
             if include_audio and AUDIO_SUPPORT:
                 self.log("Audio: ENABLED - will include original audio")
             else:
@@ -348,13 +367,52 @@ class ASCIIVideoConverter:
             
             self.log(f"Output video size: {output_width}x{output_height}")
             
-            # Setup video writer (temporary file without audio)
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(str(temp_video_path), fourcc, fps, 
-                                (output_width, output_height))
+            # Setup video writer with automatic codec fallback
+            self.log(f"Creating MP4 video with {quality} quality...")
             
-            if not out.isOpened():
-                raise Exception("Could not create output video file")
+            # Choose FPS based on quality
+            if quality == 'high':
+                actual_fps = fps
+            elif quality == 'medium':
+                actual_fps = min(fps, 25)
+            else:  # low
+                actual_fps = min(fps, 20)
+            
+            # Try different codecs in order of preference
+            codecs_to_try = [
+                ('mp4v', 'MP4V-ES'),  # Most compatible on Windows
+                ('XVID', 'XVID'),     # Good fallback
+                ('MJPG', 'MJPG'),     # Always works
+            ]
+            
+            out = None
+            used_codec = None
+            
+            for codec_fourcc, codec_name in codecs_to_try:
+                try:
+                    fourcc = cv2.VideoWriter_fourcc(*codec_fourcc)
+                    out = cv2.VideoWriter(str(temp_video_path), fourcc, actual_fps, 
+                                        (output_width, output_height))
+                    
+                    if out.isOpened():
+                        used_codec = codec_name
+                        self.log(f"✅ Using {codec_name} codec for MP4 video")
+                        break
+                    else:
+                        out.release()
+                        out = None
+                        self.log(f"⚠ {codec_name} codec failed, trying next...")
+                        
+                except Exception as e:
+                    self.log(f"⚠ {codec_name} codec error: {e}")
+                    if out:
+                        out.release()
+                        out = None
+            
+            if not out or not out.isOpened():
+                raise Exception("Could not create MP4 video file - no compatible codec found")
+                
+            self.log(f"MP4 video writer ready: {output_width}x{output_height} @ {actual_fps:.1f} FPS using {used_codec}")
             
             # Reset video to beginning
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -426,30 +484,57 @@ class ASCIIVideoConverter:
                         ascii_clip.close()
                         
                     elif AUDIO_METHOD == "ffmpeg":
-                        # Use ffmpeg directly
-                        self.log("Using ffmpeg to combine video and audio...")
+                        # Use ffmpeg directly with high-quality MP4 settings
+                        self.log("Using ffmpeg to create high-quality MP4 with audio...")
+                        
+                        # Quality settings based on user choice
+                        if quality == 'high':
+                            video_settings = ['-c:v', 'libx264', '-crf', '18', '-preset', 'medium']
+                        elif quality == 'medium':
+                            video_settings = ['-c:v', 'libx264', '-crf', '23', '-preset', 'fast']
+                        else:  # low
+                            video_settings = ['-c:v', 'libx264', '-crf', '28', '-preset', 'ultrafast']
                         
                         ffmpeg_cmd = [
                             'ffmpeg', '-y',  # -y to overwrite output
                             '-i', str(temp_video_path),  # ASCII video input
                             '-i', input_path,  # Original video with audio
-                            '-c:v', 'copy',  # Copy video stream
-                            '-c:a', 'aac',   # Re-encode audio to AAC
+                        ] + video_settings + [
+                            '-c:a', 'aac',   # AAC audio codec
+                            '-b:a', '128k',  # Audio bitrate
                             '-map', '0:v:0',  # Take video from first input (ASCII)
                             '-map', '1:a:0',  # Take audio from second input (original)
                             '-shortest',  # Match shortest stream
+                            '-movflags', '+faststart',  # Optimize for web playback
                             str(final_output_path)
                         ]
                         
                         result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
                         
                         if result.returncode == 0:
-                            self.log("✅ Audio successfully added using ffmpeg!")
+                            self.log("✅ High-quality MP4 with audio created using ffmpeg!")
                         else:
-                            # Try without audio if ffmpeg fails
-                            self.log(f"⚠ FFmpeg audio failed: {result.stderr}")
-                            self.log("Saving video without audio...")
-                            temp_video_path.rename(final_output_path)
+                            # Try simpler command if complex one fails
+                            self.log(f"⚠ Advanced FFmpeg failed, trying simple method...")
+                            simple_cmd = [
+                                'ffmpeg', '-y',
+                                '-i', str(temp_video_path),
+                                '-i', input_path,
+                                '-c:v', 'libx264',  # Force H.264 in ffmpeg
+                                '-c:a', 'aac',
+                                '-map', '0:v:0',
+                                '-map', '1:a:0',
+                                '-shortest',
+                                str(final_output_path)
+                            ]
+                            result = subprocess.run(simple_cmd, capture_output=True, text=True)
+                            
+                            if result.returncode == 0:
+                                self.log("✅ MP4 with audio created using simple ffmpeg!")
+                            else:
+                                self.log(f"⚠ FFmpeg audio failed: {result.stderr}")
+                                self.log("Saving video without audio...")
+                                temp_video_path.rename(final_output_path)
                     
                     # Remove temporary file
                     if temp_video_path.exists():
@@ -474,7 +559,13 @@ class ASCIIVideoConverter:
             
             # Show result message
             audio_msg = " with original audio" if (include_audio and AUDIO_SUPPORT) else ""
-            messagebox.showinfo("Success", f"ASCII video created successfully{audio_msg}!\n\nSaved as: {final_output_path.name}")
+            quality_msg = f" ({quality} quality MP4)"
+            messagebox.showinfo("Success", f"ASCII video created successfully{audio_msg}!\n\nSaved as: {final_output_path.name}{quality_msg}")
+            
+            # Show file info
+            if final_output_path.exists():
+                file_size = final_output_path.stat().st_size / (1024 * 1024)  # MB
+                self.log(f"Final MP4 file size: {file_size:.1f} MB")
             
         except Exception as e:
             error_msg = f"Conversion failed: {str(e)}"
@@ -541,13 +632,14 @@ def main():
             return
         
         if AUDIO_SUPPORT:
-            print("✅ Audio support available (moviepy installed)")
+            print(f"✅ Audio support available using {AUDIO_METHOD}")
         else:
             print("⚠ Audio support disabled")
             if AUDIO_ERROR:
                 print(f"   Error details: {AUDIO_ERROR}")
-            print("For audio support, install moviepy:")
-            print("pip install moviepy")
+            print("For audio support:")
+            print("  Option 1: pip install moviepy")
+            print("  Option 2: Install ffmpeg (https://ffmpeg.org/)")
             print("\nContinuing with video-only mode...")
         
         print("\nStarting GUI...")

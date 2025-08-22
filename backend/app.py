@@ -156,8 +156,10 @@ class ASCIIVideoConverter:
             font_size = settings.get('font_size', 10)
             charset = self.charsets[settings.get('charset', 'detailed')]
             include_audio = settings.get('include_audio', False) and AUDIO_SUPPORT
+            quality = settings.get('quality', 'high')  # 'high' | 'medium' | 'low'
             
             self.log_message(job_id, f"Settings - Width: {ascii_width}, Contrast: {contrast}, Font: {font_size}")
+            self.log_message(job_id, f"Output - MP4 Quality: {quality}")
             if include_audio and AUDIO_SUPPORT:
                 self.log_message(job_id, "Audio: ENABLED - will include original audio")
             else:
@@ -267,18 +269,28 @@ class ASCIIVideoConverter:
                         ascii_clip.close()
                         
                     elif AUDIO_METHOD == "ffmpeg":
-                        # Use ffmpeg directly
-                        self.log_message(job_id, "Using ffmpeg to combine video and audio...")
-                        
+                        # Use ffmpeg directly with quality settings
+                        self.log_message(job_id, "Using ffmpeg to create MP4 with audio and quality settings...")
+
+                        # Map requested quality to CRF/preset
+                        if quality == 'high':
+                            video_settings = ['-c:v', 'libx264', '-crf', '18', '-preset', 'medium']
+                        elif quality == 'medium':
+                            video_settings = ['-c:v', 'libx264', '-crf', '23', '-preset', 'fast']
+                        else:
+                            video_settings = ['-c:v', 'libx264', '-crf', '28', '-preset', 'ultrafast']
+
                         ffmpeg_cmd = [
-                            'ffmpeg', '-y',  # -y to overwrite output
-                            '-i', str(temp_video_path),  # ASCII video input
-                            '-i', input_path,  # Original video with audio
-                            '-c:v', 'copy',  # Copy video stream
-                            '-c:a', 'aac',   # Re-encode audio to AAC
-                            '-map', '0:v:0',  # Take video from first input (ASCII)
-                            '-map', '1:a:0',  # Take audio from second input (original)
-                            '-shortest',  # Match shortest stream
+                            'ffmpeg', '-y',
+                            '-i', str(temp_video_path),
+                            '-i', input_path,
+                        ] + video_settings + [
+                            '-c:a', 'aac',
+                            '-b:a', '128k',
+                            '-map', '0:v:0',
+                            '-map', '1:a:0',
+                            '-shortest',
+                            '-movflags', '+faststart',
                             str(final_output_path)
                         ]
                         
@@ -287,10 +299,26 @@ class ASCIIVideoConverter:
                         if result.returncode == 0:
                             self.log_message(job_id, "✅ Audio successfully added using ffmpeg!")
                         else:
-                            # Try without audio if ffmpeg fails
-                            self.log_message(job_id, f"⚠ FFmpeg audio failed: {result.stderr}")
-                            self.log_message(job_id, "Saving video without audio...")
-                            temp_video_path.rename(final_output_path)
+                            # Try simpler command if complex one fails
+                            self.log_message(job_id, f"⚠ FFmpeg quality pipeline failed, trying simple mapping...")
+                            simple_cmd = [
+                                'ffmpeg', '-y',
+                                '-i', str(temp_video_path),
+                                '-i', input_path,
+                                '-c:v', 'libx264',
+                                '-c:a', 'aac',
+                                '-map', '0:v:0',
+                                '-map', '1:a:0',
+                                '-shortest',
+                                str(final_output_path)
+                            ]
+                            result2 = subprocess.run(simple_cmd, capture_output=True, text=True)
+                            if result2.returncode == 0:
+                                self.log_message(job_id, "✅ MP4 with audio created using simple ffmpeg!")
+                            else:
+                                self.log_message(job_id, f"⚠ FFmpeg audio pipeline failed: {result.stderr}")
+                                self.log_message(job_id, "Saving video without audio...")
+                                temp_video_path.rename(final_output_path)
                     
                     # Remove temporary file
                     if temp_video_path.exists():
@@ -302,8 +330,25 @@ class ASCIIVideoConverter:
                     if temp_video_path.exists():
                         temp_video_path.rename(final_output_path)
             else:
-                # No audio requested, just rename temp file
-                temp_video_path.rename(final_output_path)
+                # No audio requested. Re-encode to MP4 with requested quality if ffmpeg is available
+                try:
+                    import subprocess as _sp
+                    self.log_message(job_id, "Re-encoding ASCII MP4 without audio using ffmpeg...")
+                    if quality == 'high':
+                        video_settings = ['-c:v', 'libx264', '-crf', '18', '-preset', 'medium']
+                    elif quality == 'medium':
+                        video_settings = ['-c:v', 'libx264', '-crf', '23', '-preset', 'fast']
+                    else:
+                        video_settings = ['-c:v', 'libx264', '-crf', '28', '-preset', 'ultrafast']
+
+                    cmd = ['ffmpeg', '-y', '-i', str(temp_video_path)] + video_settings + ['-movflags', '+faststart', str(final_output_path)]
+                    result = _sp.run(cmd, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        self.log_message(job_id, f"⚠ ffmpeg re-encode failed: {result.stderr}")
+                        temp_video_path.rename(final_output_path)
+                except Exception as _e:
+                    self.log_message(job_id, f"⚠ ffmpeg not available for re-encode: {_e}")
+                    temp_video_path.rename(final_output_path)
                 if not include_audio:
                     self.log_message(job_id, "Audio not requested - video only")
                 

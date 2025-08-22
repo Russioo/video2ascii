@@ -1,6 +1,6 @@
-# 🎬 ASCII Video Converter
+# ASCII Video Converter
 
-Python-baseret ASCII video converter med React frontend. Konverterer videofiler til ASCII art videoer med original lyd support!
+Client-side ASCII video converter. Convert video files to ASCII art directly in your browser.
 
 ## ✨ Features
 
@@ -11,29 +11,16 @@ Python-baseret ASCII video converter med React frontend. Konverterer videofiler 
 - 🐍 **Python backend** - Server-baseret processing for bedre performance
 - 📊 **Real-time logs** - Se conversion progress live
 
-## 🚀 Quick Start
+## Quick Start (Serverless – in the browser)
 
-### 1. Start Python Backend
-
-```bash
-cd backend
-python start.py
-```
-
-Starter scriptet vil:
-- Tjekke Python version (3.8+ påkrævet)
-- Installere nødvendige packages automatisk
-- Oprette nødvendige directories
-- Starte Flask server på port 5000
-
-### 2. Start Frontend
+### 1) Start Frontend
 
 ```bash
 npm install
 npm run dev
 ```
 
-Frontend kører på: http://localhost:5174/
+Open the Vite URL (typically http://localhost:5173). Conversion runs 100% in your browser – no backend required.
 
 ## 📋 Requirements
 
@@ -81,14 +68,9 @@ project/
 └── README.md             # Dette dokument
 ```
 
-## 🔧 API Endpoints
+## (Optional) Legacy Python backend
 
-- `GET /api/health` - Backend status og audio support
-- `POST /api/upload` - Upload videofil
-- `POST /api/convert` - Start ASCII konvertering
-- `GET /api/status/{job_id}` - Hent conversion status
-- `GET /api/download/{job_id}` - Download konverteret video
-- `GET /api/logs/{job_id}` - Hent detaljerede logs
+Not required anymore. If you want to use it, start it from `backend/` and point the client to the API.
 
 ## 🎯 Hvordan Det Virker
 
@@ -100,20 +82,18 @@ project/
 
 ## 🐛 Troubleshooting
 
-### Backend starter ikke
-- Tjek at Python 3.8+ er installeret
-- Kør `python backend/start.py` for automatisk setup
-- Installér packages manuelt: `pip install -r backend/requirements.txt`
+### Browser/MediaRecorder issues
+- Use a modern browser (Chrome/Edge) – MediaRecorder is required.
+- Safari/iOS may restrict recording.
 
 ### Ingen lyd i output
 - Installér moviepy: `pip install moviepy`
 - Eller installér ffmpeg og tilføj til PATH
 - Tjek backend logs for audio fejl
 
-### Frontend kan ikke forbinde
-- Tjek at backend kører på port 5000
-- Åbn http://localhost:5000/api/health i browser
-- Tjek CORS indstillinger
+### No audio in output
+- Ensure the video actually has an audio track.
+- Browser must allow audio playback (autoplay might need muted or user interaction).
 
 ### Conversion fejler
 - Tjek at videofilen er i supporteret format (mp4, avi, mov, etc.)
