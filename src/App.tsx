@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createFFmpeg } from '@ffmpeg/ffmpeg'
+import { FFmpeg } from '@ffmpeg/ffmpeg'
 
 type CharsetName = 'detailed' | 'blocks' | 'simple'
 
@@ -506,7 +506,7 @@ export const App: React.FC = () => {
 
 	const ensureFFmpegLoaded = useCallback(async () => {
 		if (!ffmpegRef.current) {
-			const ffmpeg = ffmpeg.createFFmpeg({ log: false })
+			const ffmpeg = new FFmpeg()
 			await ffmpeg.load()
 			ffmpegRef.current = ffmpeg
 		}
