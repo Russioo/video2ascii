@@ -506,7 +506,7 @@ export const App: React.FC = () => {
 
 	const ensureFFmpegLoaded = useCallback(async () => {
 		if (!ffmpegRef.current) {
-			const ffmpeg = FFmpeg.createFFmpeg({ log: false })
+			const ffmpeg = ffmpeg.createFFmpeg({ log: false })
 			await ffmpeg.load()
 			ffmpegRef.current = ffmpeg
 		}
