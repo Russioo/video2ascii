@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Video Recorder</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #000428, #004e92);
+            color: #00ff41;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #00ff41;
+            text-shadow: 0 0 20px #00ff41;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .status {
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .controls {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff41;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        label {
+            color: #00ff41;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        input[type="file"] {
+            background: rgba(0, 0, 0, 0.9);
+            color: #00ff41;
+            border: 2px solid #00ff41;
+            padding: 12px;
+            border-radius: 8px;
+            flex: 1;
+            font-family: inherit;
+        }
+        
+        input[type="range"] {
+            background: rgba(0, 255, 65, 0.2);
+            height: 25px;
+            border-radius: 15px;
+            outline: none;
+            width: 150px;
+        }
+        
+        select {
+            background: rgba(0, 0, 0, 0.9);
+            color: #00ff41;
+            border: 2px solid #00ff41;
+            padding: 8px;
+            border-radius: 5px;
+            font-family: inherit;
+        }
+        
+        button {
+            background: linear-gradient(45deg, rgba(0, 255, 65, 0.2), rgba(0, 255, 65, 0.1));
+            color: #00ff41;
+            border: 2px solid #00ff41;
+            padding: 12px 24px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #00ff41;
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .video-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+        
+        .video-panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff41;
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .video-panel h3 {
+            margin-top: 0;
+            color: #00ff41;
+            text-align: center;
+            text-shadow: 0 0 10px #00ff41;
+        }
+        
+        video {
+            width: 100%;
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            background: #000;
+        }
+        
+        .ascii-display {
+            background: #000;
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            white-space: pre;
+            padding: 10px;
+            overflow: hidden;
+            height: 300px;
+            color: #00ff41;
+            text-shadow: 0 0 5px #00ff41;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .preview-section {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff41;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .log-section {
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #00ff41;
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .log {
+            background: #000;
+            border: 1px solid #00ff41;
+            border-radius: 10px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #00ff41;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        
+        .log-entry.error {
+            color: #ff4444;
+        }
+        
+        .log-entry.success {
+            color: #44ff44;
+        }
+        
+        .log-entry.info {
+            color: #4444ff;
+        }
+        
+        .progress {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            background: rgba(0, 255, 65, 0.2);
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(45deg, #00ff41, #44ff44);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .video-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .ascii-display {
+                font-size: 4px;
+                line-height: 4px;
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 ASCII Video Recorder 🎬</h1>
+        
+        <div class="status" id="status">
+            Ready to load video file
+        </div>
+        
+        <div class="controls">
+            <div class="control-row">
+                <div class="control-group" style="flex: 1;">
+                    <label for="videoFile">Select Video File:</label>
+                    <input type="file" id="videoFile" accept="video/*" />
+                </div>
+            </div>
+            
+            <div class="control-row">
+                <div class="control-group">
+                    <label for="asciiWidth">ASCII Width:</label>
+                    <input type="range" id="asciiWidth" min="30" max="120" value="60" />
+                    <span id="widthValue">60</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="contrast">Contrast:</label>
+                    <input type="range" id="contrast" min="0.5" max="3" step="0.1" value="1.5" />
+                    <span id="contrastValue">1.5</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="fontSize">Font Size (Preview):</label>
+                    <input type="range" id="fontSize" min="8" max="40" value="20" />
+                    <span id="fontSizeValue">20</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="videoFontSize">Video Font Size:</label>
+                    <input type="range" id="videoFontSize" min="20" max="80" value="40" />
+                    <span id="videoFontSizeValue">40</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="charset">Character Set:</label>
+                    <select id="charset">
+                        <option value="detailed">Detailed: @%#*+=-:. </option>
+                        <option value="simple">Simple: █▓▒░ </option>
+                        <option value="blocks">Blocks: ████▓▓▓▒▒▒░░░</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-row">
+                <button id="downloadBtn" disabled>💾 Download ASCII Video</button>
+                <button id="clearLogBtn">🗑️ Clear Log</button>
+            </div>
+        </div>
+        
+        <div class="video-section hidden" id="videoSection">
+            <div class="video-panel">
+                <h3>📹 Original Video</h3>
+                <video id="sourceVideo" controls></video>
+            </div>
+            <div class="video-panel">
+                <h3>📟 ASCII Output</h3>
+                <div id="asciiDisplay" class="ascii-display"></div>
+            </div>
+        </div>
+        
+        <div class="preview-section hidden" id="previewSection">
+            <h3>🎥 Recorded ASCII Video</h3>
+            <video id="previewVideo" controls style="width: 100%;"></video>
+            <div style="margin-top: 10px; text-align: center;">
+                <span id="videoStats"></span>
+            </div>
+        </div>
+        
+        <div class="progress hidden" id="progressSection">
+            <div>Processing...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div id="progressText">0%</div>
+        </div>
+        
+        <div class="log-section">
+            <h3>📊 System Log</h3>
+            <div class="log" id="logOutput"></div>
+        </div>
+    </div>
+
+    <script>
+        class ASCIIVideoRecorder {
+            constructor() {
+                this.sourceVideo = document.getElementById('sourceVideo');
+                this.asciiDisplay = document.getElementById('asciiDisplay');
+                this.logOutput = document.getElementById('logOutput');
+                this.status = document.getElementById('status');
+                
+                // Canvas setup
+                this.sampleCanvas = document.createElement('canvas');
+                this.sampleCtx = this.sampleCanvas.getContext('2d');
+                this.outputCanvas = document.createElement('canvas');
+                this.outputCtx = this.outputCanvas.getContext('2d');
+                
+                // Recording state
+                this.isRecording = false;
+                this.isFirstFramePending = false;
+                this.recordingInitialized = false;
+                this.mediaRecorder = null;
+                this.recordedChunks = [];
+                this.captureStream = null;
+                this.videoTrack = null;
+                this.webmBlobUrl = null;
+                
+                // ASCII settings
+                this.charsets = {
+                    detailed: '@%#*+=-:. ',
+                    simple: '█▓▒░ ',
+                    blocks: '████▓▓▓▒▒▒░░░   '
+                };
+                
+                this.recordingStartTime = null;
+                this.frameCount = 0;
+                
+                this.setupEventListeners();
+                this.updateSettingDisplays();
+                this.log('ASCII Video Recorder initialized', 'info');
+            }
+            
+            log(message, type = 'normal') {
+                const timestamp = new Date().toLocaleTimeString();
+                const logLine = `[${timestamp}] ${message}`;
+                console.log(logLine);
+                
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.textContent = logLine;
+                
+                this.logOutput.appendChild(entry);
+                this.logOutput.scrollTop = this.logOutput.scrollHeight;
+            }
+            
+            setStatus(message, type = 'normal') {
+                this.status.textContent = message;
+                this.status.style.color = type === 'error' ? '#ff4444' : 
+                                         type === 'success' ? '#44ff44' : '#00ff41';
+            }
+            
+            updateSettingDisplays() {
+                document.getElementById('widthValue').textContent = document.getElementById('asciiWidth').value;
+                document.getElementById('contrastValue').textContent = document.getElementById('contrast').value;
+                document.getElementById('fontSizeValue').textContent = document.getElementById('fontSize').value;
+                document.getElementById('videoFontSizeValue').textContent = document.getElementById('videoFontSize').value;
+            }
+            
+            setupEventListeners() {
+                // File input
+                document.getElementById('videoFile').addEventListener('change', (e) => {
+                    this.loadVideo(e.target.files[0]);
+                });
+                
+                // Controls
+                document.getElementById('downloadBtn').addEventListener('click', () => {
+                    this.downloadASCIIVideo();
+                });
+                
+                document.getElementById('clearLogBtn').addEventListener('click', () => {
+                    this.logOutput.innerHTML = '';
+                });
+                
+                // Settings
+                ['asciiWidth', 'contrast', 'fontSize', 'videoFontSize'].forEach(id => {
+                    document.getElementById(id).addEventListener('input', () => {
+                        this.updateSettingDisplays();
+                        if (this.sourceVideo.src && !this.isRecording) {
+                            // Re-setup canvases if ASCII width changed
+                            if (id === 'asciiWidth') {
+                                this.setupCanvases();
+                            }
+                            this.generateASCII();
+                        }
+                    });
+                });
+                
+                document.getElementById('charset').addEventListener('change', () => {
+                    if (this.sourceVideo.src && !this.isRecording) {
+                        this.generateASCII();
+                    }
+                });
+                
+                // Video events
+                this.sourceVideo.addEventListener('loadeddata', () => {
+                    this.setupCanvases();
+                    this.generateASCII(); // Show first frame with proper sizing
+                    document.getElementById('downloadBtn').disabled = false;
+                    this.setStatus('Video loaded - Ready to download ASCII video!', 'success');
+                    this.log('Video loaded successfully', 'success');
+                });
+                
+                this.sourceVideo.addEventListener('ended', () => {
+                    if (this.isRecording) {
+                        this.log('Video playback ended, stopping recording...', 'info');
+                        this.stopRecording();
+                    }
+                });
+            }
+            
+            loadVideo(file) {
+                if (!file) return;
+                
+                this.log(`Loading video file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`, 'info');
+                this.setStatus('Loading video...');
+                
+                // Clean up previous video
+                if (this.sourceVideo.src) {
+                    URL.revokeObjectURL(this.sourceVideo.src);
+                }
+                
+                const url = URL.createObjectURL(file);
+                this.sourceVideo.src = url;
+                document.getElementById('videoSection').classList.remove('hidden');
+            }
+            
+            setupCanvases() {
+                const asciiWidth = parseInt(document.getElementById('asciiWidth').value);
+                const aspectRatio = this.sourceVideo.videoHeight / this.sourceVideo.videoWidth;
+                const asciiHeight = Math.floor(asciiWidth * aspectRatio * 0.45);
+                
+                // Sample canvas for reading video frames
+                this.sampleCanvas.width = asciiWidth;
+                this.sampleCanvas.height = asciiHeight;
+                
+                // Output canvas - smaller for ASCII to be relatively larger
+                this.outputCanvas.width = 480;  // Reduced from 720 for larger ASCII
+                this.outputCanvas.height = Math.floor(480 * aspectRatio);
+                
+                this.log(`Canvas setup - Sample: ${this.sampleCanvas.width}x${this.sampleCanvas.height}, Output: ${this.outputCanvas.width}x${this.outputCanvas.height}`, 'info');
+            }
+            
+            getSupportedMimeType() {
+                // Check if stream has audio
+                const hasAudio = this.captureStream && this.captureStream.getAudioTracks().length > 0;
+                
+                const types = hasAudio ? [
+                    'video/webm;codecs=vp8,opus',
+                    'video/webm;codecs=vp8'
+                ] : [
+                    'video/webm;codecs=vp8',  // NO opus when no audio
+                    'video/webm'
+                ];
+                
+                for (let type of types) {
+                    if (MediaRecorder.isTypeSupported(type)) {
+                        this.log(`Selected MIME type: ${type} ${hasAudio ? '(with audio)' : '(video only)'}`, 'info');
+                        return type;
+                    }
+                }
+                throw new Error('No supported MIME type found');
+            }
+            
+            downloadASCIIVideo() {
+                this.log('Starting automatic ASCII video creation...', 'info');
+                this.setStatus('Creating ASCII video...', 'success');
+                
+                // Disable download button during process
+                document.getElementById('downloadBtn').disabled = true;
+                document.getElementById('downloadBtn').textContent = '⏳ Creating Video...';
+                
+                // Start the recording process
+                this.startRecording();
+            }
+            
+            startRecording() {
+                try {
+                    this.log('Starting recording setup...', 'info');
+                    this.setStatus('Starting recording...');
+                    
+                    // Setup capture stream from output canvas
+                    this.captureStream = this.outputCanvas.captureStream(30);
+                    this.videoTrack = this.captureStream.getVideoTracks()[0];
+                    
+                    this.log(`Canvas stream created - Video tracks: ${this.captureStream.getVideoTracks().length}, Audio tracks: ${this.captureStream.getAudioTracks().length}`, 'info');
+                    
+                    // Reset recording state
+                    this.isFirstFramePending = true;
+                    this.recordingInitialized = false;
+                    this.recordedChunks = [];
+                    this.isRecording = true;
+                    this.recordingStartTime = Date.now();
+                    this.frameCount = 0;
+                    
+                    // Start video playback
+                    this.sourceVideo.currentTime = 0;
+                    this.sourceVideo.play();
+                    
+                    // Start animation loop
+                    this.animationLoop();
+                    
+                    // Update UI
+                    document.getElementById('downloadBtn').textContent = '⏳ Recording...';
+                    
+                    this.setStatus('Recording ASCII video...', 'success');
+                    
+                } catch (error) {
+                    this.log(`Recording setup failed: ${error.message}`, 'error');
+                    this.setStatus('Recording setup failed', 'error');
+                }
+            }
+            
+            stopRecording() {
+                this.log('Stopping recording...', 'info');
+                this.setStatus('Processing video...');
+                
+                this.isRecording = false;
+                this.isFirstFramePending = false;
+                this.sourceVideo.pause();
+                
+                if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                    this.mediaRecorder.stop();
+                } else {
+                    this.log(`MediaRecorder state: ${this.mediaRecorder ? this.mediaRecorder.state : 'null'}`, 'info');
+                }
+                
+                // Update UI
+                document.getElementById('downloadBtn').textContent = '⏳ Processing...';
+                
+                const duration = (Date.now() - this.recordingStartTime) / 1000;
+                this.log(`Recording session: ${duration.toFixed(1)}s, ${this.frameCount} frames processed`, 'info');
+            }
+            
+            initializeRecorder() {
+                if (this.recordingInitialized || !this.captureStream) return;
+                
+                try {
+                    const mimeType = this.getSupportedMimeType();
+                    const options = { 
+                        mimeType,
+                        videoBitsPerSecond: 1000000 // Reduced to 1 Mbps for smaller file size
+                    };
+                    
+                    this.mediaRecorder = new MediaRecorder(this.captureStream, options);
+                    
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        const size = event.data.size;
+                        this.log(`Data chunk received: ${size} bytes (${(size/1024).toFixed(1)} KB)`, size > 0 ? 'success' : 'error');
+                        
+                        if (size > 0) {
+                            this.recordedChunks.push(event.data);
+                        }
+                    };
+                    
+                    this.mediaRecorder.onstop = () => {
+                        const totalBytes = this.recordedChunks.reduce((sum, chunk) => sum + chunk.size, 0);
+                        this.log(`Recording stopped - Total size: ${(totalBytes/1024/1024).toFixed(2)} MB from ${this.recordedChunks.length} chunks`, totalBytes > 0 ? 'success' : 'error');
+                        
+                        if (totalBytes > 0) {
+                            this.processRecording();
+                        } else {
+                            this.setStatus('Recording failed - no data captured', 'error');
+                        }
+                    };
+                    
+                    this.mediaRecorder.onerror = (event) => {
+                        this.log(`MediaRecorder error: ${event.error}`, 'error');
+                        this.setStatus('Recording error occurred', 'error');
+                    };
+                    
+                    // Start recording with timeslice
+                    this.mediaRecorder.start(1000);
+                    this.recordingInitialized = true;
+                    
+                    this.log(`MediaRecorder started successfully with: ${mimeType}`, 'success');
+                    
+                } catch (error) {
+                    this.log(`MediaRecorder initialization failed: ${error.message}`, 'error');
+                    this.setStatus('Recording initialization failed', 'error');
+                }
+            }
+            
+            animationLoop() {
+                if (!this.isRecording) return;
+                
+                this.generateASCII();
+                this.frameCount++;
+                
+                // Update frame rate info
+                const elapsed = (Date.now() - this.recordingStartTime) / 1000;
+                const fps = (this.frameCount / elapsed).toFixed(1);
+                const videoProgress = (this.sourceVideo.currentTime / this.sourceVideo.duration * 100).toFixed(1);
+                
+                if (this.frameCount % 30 === 0) { // Update every 30 frames
+                    this.setStatus(`Recording: ${elapsed.toFixed(1)}s | ${videoProgress}% complete | ${fps} FPS`, 'success');
+                }
+                
+                requestAnimationFrame(() => this.animationLoop());
+            }
+            
+            generateASCII() {
+                if (this.sourceVideo.readyState < 2) return;
+                
+                // Draw video frame to sample canvas
+                this.sampleCtx.drawImage(this.sourceVideo, 0, 0, this.sampleCanvas.width, this.sampleCanvas.height);
+                
+                // Get pixel data
+                const imageData = this.sampleCtx.getImageData(0, 0, this.sampleCanvas.width, this.sampleCanvas.height);
+                const pixels = imageData.data;
+                
+                // Get settings
+                const contrast = parseFloat(document.getElementById('contrast').value);
+                const charsetName = document.getElementById('charset').value;
+                const charset = this.charsets[charsetName];
+                
+                // Convert to ASCII
+                let ascii = '';
+                for (let y = 0; y < this.sampleCanvas.height; y++) {
+                    for (let x = 0; x < this.sampleCanvas.width; x++) {
+                        const i = (y * this.sampleCanvas.width + x) * 4;
+                        const r = pixels[i];
+                        const g = pixels[i + 1];
+                        const b = pixels[i + 2];
+                        
+                        let gray = (r * 0.299 + g * 0.587 + b * 0.114);
+                        gray = ((gray - 128) * contrast) + 128;
+                        gray = Math.max(0, Math.min(255, gray));
+                        
+                        const charIndex = Math.floor((gray / 255) * (charset.length - 1));
+                        ascii += charset[charIndex];
+                    }
+                    ascii += '\n';
+                }
+                
+                // Update display with dynamic font size
+                this.updateASCIIDisplay(ascii);
+                
+                // Draw to output canvas for recording
+                if (this.isRecording) {
+                    this.drawASCIIToCanvas(ascii);
+                    
+                    // Handle first frame
+                    if (this.isFirstFramePending && this.videoTrack) {
+                        this.log('First frame drawn, requesting frame and initializing recorder...', 'info');
+                        
+                        // Request first frame
+                        if (this.videoTrack.requestFrame) {
+                            this.videoTrack.requestFrame();
+                        }
+                        
+                        // Initialize recorder after short delay
+                        setTimeout(() => {
+                            this.initializeRecorder();
+                        }, 100);
+                        
+                        this.isFirstFramePending = false;
+                        
+                    } else if (this.recordingInitialized && this.videoTrack && this.videoTrack.requestFrame) {
+                        // Request subsequent frames
+                        this.videoTrack.requestFrame();
+                    }
+                }
+            }
+            
+            updateASCIIDisplay(ascii) {
+                // Get font size from slider
+                const fontSize = parseInt(document.getElementById('fontSize').value);
+                
+                // Calculate display dimensions
+                const displayElement = this.asciiDisplay;
+                const containerWidth = displayElement.offsetWidth - 20; // minus padding
+                const containerHeight = displayElement.offsetHeight - 20; // minus padding
+                
+                // Calculate optimal font size for display
+                const lines = ascii.split('\n').filter(line => line.length > 0);
+                const maxLineLength = Math.max(...lines.map(line => line.length));
+                const numberOfLines = lines.length;
+                
+                // Scale fontSize to fit display area
+                const maxByWidth = Math.floor(containerWidth / maxLineLength * 1.2);
+                const maxByHeight = Math.floor(containerHeight / numberOfLines);
+                const displayFontSize = Math.min(fontSize, maxByWidth, maxByHeight, 25); // Max 25px for display
+                
+                // Apply dynamic styling
+                displayElement.style.fontSize = displayFontSize + 'px';
+                displayElement.style.lineHeight = (displayFontSize * 0.85) + 'px';
+                
+                // Update content
+                displayElement.textContent = ascii;
+            }
+            
+            drawASCIIToCanvas(ascii) {
+                // Clear canvas with black background
+                this.outputCtx.fillStyle = '#000000';
+                this.outputCtx.fillRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+                
+                // Get manual font size setting
+                const manualFontSize = parseInt(document.getElementById('fontSize').value);
+                
+                // Calculate lines and dimensions
+                const lines = ascii.split('\n').filter(line => line.length > 0);
+                const maxLineLength = Math.max(...lines.map(line => line.length));
+                const numberOfLines = lines.length;
+                
+                // Use manual font size, but cap it to fit canvas
+                const maxPossibleByWidth = Math.floor((this.outputCanvas.width - 20) / maxLineLength * 1.2);
+                const maxPossibleByHeight = Math.floor((this.outputCanvas.height - 20) / numberOfLines);
+                const maxPossible = Math.min(maxPossibleByWidth, maxPossibleByHeight);
+                
+                const fontSize = Math.min(manualFontSize, maxPossible);
+                const lineHeight = fontSize * 0.85; // Tight line spacing
+                
+                // Set font
+                this.outputCtx.fillStyle = '#00ff41';
+                this.outputCtx.font = `bold ${fontSize}px Courier New`;
+                this.outputCtx.textBaseline = 'top';
+                
+                // Calculate centering
+                const totalTextHeight = numberOfLines * lineHeight;
+                const startY = Math.max(5, (this.outputCanvas.height - totalTextHeight) / 2);
+                
+                // Draw each line centered
+                lines.forEach((line, index) => {
+                    const textWidth = this.outputCtx.measureText(line).width;
+                    const startX = Math.max(5, (this.outputCanvas.width - textWidth) / 2);
+                    this.outputCtx.fillText(line, startX, startY + (index * lineHeight));
+                });
+                
+                // Log font size for debugging
+                if (this.frameCount === 1) {
+                    this.log(`ASCII rendering: ${fontSize}px font (requested: ${manualFontSize}px), ${maxLineLength} chars wide, ${numberOfLines} lines`, 'info');
+                }
+            }
+            
+            processRecording() {
+                this.setStatus('Processing recording...');
+                document.getElementById('progressSection').classList.remove('hidden');
+                
+                setTimeout(() => {
+                    try {
+                        // Create WebM blob
+                        const webmBlob = new Blob(this.recordedChunks, { 
+                            type: 'video/webm'
+                        });
+                        
+                        this.log(`WebM blob created: ${(webmBlob.size/1024/1024).toFixed(2)} MB from ${this.recordedChunks.length} chunks`, 'success');
+                        
+                        // Clean up previous URL
+                        if (this.webmBlobUrl) {
+                            URL.revokeObjectURL(this.webmBlobUrl);
+                        }
+                        
+                        // Create new URL
+                        this.webmBlobUrl = URL.createObjectURL(webmBlob);
+                        
+                        // Show preview
+                        this.showPreview(this.webmBlobUrl, webmBlob.size);
+                        
+                        // Reset state
+                        this.recordingInitialized = false;
+                        
+                        // Automatically start download
+                        this.log('Starting automatic download...', 'info');
+                        this.autoDownloadVideo();
+                        
+                        this.setStatus('Download completed!', 'success');
+                        this.log('Recording ready for preview and download', 'success');
+                        
+                    } catch (error) {
+                        this.log(`Processing failed: ${error.message}`, 'error');
+                        this.setStatus('Processing failed', 'error');
+                    }
+                    
+                    document.getElementById('progressSection').classList.add('hidden');
+                }, 500);
+            }
+            
+            showPreview(url, size) {
+                const previewVideo = document.getElementById('previewVideo');
+                const previewSection = document.getElementById('previewSection');
+                const videoStats = document.getElementById('videoStats');
+                
+                previewVideo.src = url;
+                previewSection.classList.remove('hidden');
+                
+                videoStats.textContent = `File size: ${(size/1024/1024).toFixed(2)} MB | Format: WebM`;
+                
+                this.log('Preview video ready for playback', 'success');
+                
+                // Test if video can play
+                previewVideo.addEventListener('loadeddata', () => {
+                    this.log(`Preview video loaded: ${previewVideo.videoWidth}x${previewVideo.videoHeight}, Duration: ${previewVideo.duration.toFixed(2)}s`, 'success');
+                }, { once: true });
+                
+                previewVideo.addEventListener('error', (e) => {
+                    this.log(`Preview video error: ${e.message}`, 'error');
+                }, { once: true });
+            }
+            
+            autoDownloadVideo() {
+                if (!this.webmBlobUrl) {
+                    this.log('No video available for download', 'error');
+                    return;
+                }
+                
+                try {
+                    const a = document.createElement('a');
+                    a.href = this.webmBlobUrl;
+                    a.download = `ascii_video_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.webm`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    this.log(`Download completed: ${a.download}`, 'success');
+                    
+                    // Reset button
+                    document.getElementById('downloadBtn').disabled = false;
+                    document.getElementById('downloadBtn').textContent = '💾 Download ASCII Video';
+                    
+                } catch (error) {
+                    this.log(`Download failed: ${error.message}`, 'error');
+                    this.setStatus('Download failed', 'error');
+                    
+                    // Reset button on error
+                    document.getElementById('downloadBtn').disabled = false;
+                    document.getElementById('downloadBtn').textContent = '💾 Download ASCII Video';
+                }
+            }
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ASCIIVideoRecorder();
+        });
+    </script>
+</body>
+</html>

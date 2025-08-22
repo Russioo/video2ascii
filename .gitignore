@@ -1,0 +1,42 @@
+# Node
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.log
+*.local
+.env
+.env.*
+!.env.example
+
+# Vite
+.vite/
+
+# TypeScript
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.build/
+venv/
+.venv/
+ENV/
+env/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.cache/
+
+# IDE
+.vscode/
+.idea/
