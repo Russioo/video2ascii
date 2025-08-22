@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import FFmpeg from '@ffmpeg/ffmpeg'
+import { createFFmpeg } from '@ffmpeg/ffmpeg'
 
 type CharsetName = 'detailed' | 'blocks' | 'simple'
 
