@@ -504,14 +504,14 @@ export const App: React.FC = () => {
 		window.addEventListener('mouseup', onUp)
 	}
 
-  const ensureFFmpegLoaded = useCallback(async () => {
-    if (!ffmpegRef.current) {
-      const ffmpeg = FFmpeg
-      await ffmpeg.load()
-      ffmpegRef.current = ffmpeg
-    }
-    return ffmpegRef.current
-  }, [])
+	const ensureFFmpegLoaded = useCallback(async () => {
+		if (!ffmpegRef.current) {
+			const ffmpeg = FFmpeg.createFFmpeg({ log: false })
+			await ffmpeg.load()
+			ffmpegRef.current = ffmpeg
+		}
+		return ffmpegRef.current
+	}, [])
 
 	return (
 		<div className="container">
